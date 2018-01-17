@@ -22,3 +22,9 @@ revision 425a42d82006cf0aa24be27b483d2f6a41607489. The code is taken
 from the repo's hc-sr04-range-sensor directory. It has been modified
 so that the IEP definitions compile correctly. See pru_rpmsg.patch for
 the modifications.
+
+Due to licensing questions, cmsis-stm32f1xx is not included.
+I extracted it from this example project:
+ http://stefanfrings.de/stm32/blink_CMSIS.zip
+Patch lib/cmsis-stm32f1xx/CMSIS/device/stm32f1xx.h line 90 to COMMENT the #define STM32F103xB
+TODO get a better source

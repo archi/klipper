@@ -10,6 +10,8 @@ choice
         bool "SAM3x8e (Arduino Due)"
     config MACH_PRU
         bool "Beaglebone PRU"
+    config MACH_STM32F1XX
+        bool "STM32F1xx (blue pill)"
     config MACH_LINUX
         bool "Linux process"
     config MACH_SIMU
@@ -18,6 +20,7 @@ endchoice
 
 source "src/avr/Kconfig"
 source "src/sam3x8e/Kconfig"
+source "src/stm32f1xx/Kconfig"
 source "src/pru/Kconfig"
 source "src/linux/Kconfig"
 source "src/simulator/Kconfig"
