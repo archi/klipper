@@ -9,7 +9,7 @@ dirs-y += src/stm32f1xx src/generic
 CFLAGS += -mthumb -mcpu=cortex-m3
 CFLAGS += -Ilib/stm32/libmaple/include -Ilib/stm32/libmaple
 # TODO configure MCU in menuconfig; valid values are in lib/stm32/libmaple/stm32f1/include/series/stm32.h
-CFLAGS += -DMCU_STM32F103C8
+CFLAGS += -DMCU_STM32F103C8 -DF_CPU=72000000L
 
 #not used anymore: CFLAGS_klipper.elf += -Llib/cmsis-sam3x8e/source/gcc
 CFLAGS_klipper.elf += -T lib/cmsis-stm32f1xx/LinkerScript.ld

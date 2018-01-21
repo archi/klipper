@@ -8,58 +8,52 @@
 #include "board/misc.h" // timer_read_time
 #include "board/timer_irq.h" // timer_dispatch_many
 #include "command.h" // DECL_SHUTDOWN
-#include "sam3x8e.h" // TC0
+#include "libmaple/timer.h"
 #include "sched.h" // DECL_INIT
+
+#define TIMER TIMER1
+#define IRQ 0
+#define CHANNEL 0
 
 // Set the next irq time
 static void
 timer_set(uint32_t value)
 {
-    TC0->TC_CHANNEL[0].TC_RA = value;
+    timer_set_count(TIMER, 0);
+    timer_set_compare(TIMER, CHANNEL, value); //this will be cast ot uint16!
 }
 
 // Return the current time (in absolute clock ticks).
 uint32_t
 timer_read_time(void)
 {
-    return TC0->TC_CHANNEL[0].TC_CV;
+    return timer_get_count(TIMER);
 }
 
 // Activate timer dispatch as soon as possible
 void
 timer_kick(void)
 {
-    timer_set(timer_read_time() + 50);
-    TC0->TC_CHANNEL[0].TC_SR; // read to clear irq pending
+    timer_set_reload(TIMER, timer_get_compare(TIMER, CHANNEL) - 2);
+}
+
+// IRQ handler
+static void __visible __aligned(16) // aligning helps stabilize perf benchmarks
+timer_handler(void)
+{
+    timer_disable_irq(TIMER, IRQ);
+    uint32_t next = timer_dispatch_many();
+    timer_set(next);
+    timer_enable_irq(TIMER, IRQ);
 }
 
 void
-timer_init(void)
+timer_init_stm32(void)
 {
-    TcChannel *tc = &TC0->TC_CHANNEL[0];
-    // Reset the timer
-    tc->TC_CCR = TC_CCR_CLKDIS;
-    tc->TC_IDR = 0xFFFFFFFF;
-    // Enable it
-    PMC->PMC_PCER0 = 1 << ID_TC0;
-    tc->TC_CMR = TC_CMR_WAVE | TC_CMR_WAVSEL_UP | TC_CMR_TCCLKS_TIMER_CLOCK1;
-    tc->TC_IER = TC_IER_CPAS;
-    NVIC_SetPriority(TC0_IRQn, 1);
-    NVIC_EnableIRQ(TC0_IRQn);
+    timer_init(TIMER);
+    timer_set_mode(TIMER, CHANNEL, TIMER_OUTPUT_COMPARE); 
+    timer_enable_irq(TIMER, IRQ);
+    timer_attach_interrupt(TIMER, IRQ, &timer_handler);
     timer_kick();
-    tc->TC_CCR = TC_CCR_CLKEN | TC_CCR_SWTRG;
 }
-DECL_INIT(timer_init);
-
-// IRQ handler
-void __visible __aligned(16) // aligning helps stabilize perf benchmarks
-TC0_Handler(void)
-{
-    irq_disable();
-    uint32_t status = TC0->TC_CHANNEL[0].TC_SR; // read to clear irq pending
-    if (likely(status & TC_SR_CPAS)) {
-        uint32_t next = timer_dispatch_many();
-        timer_set(next);
-    }
-    irq_enable();
-}
+DECL_INIT(timer_init_stm32);
