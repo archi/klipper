@@ -5,7 +5,8 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 
 #include "command.h" // DECL_CONSTANT
-#include "sam3x8e.h" // WDT
+#include "libmaple/iwdg.h" //iwdg_feed/iwdg_init
+#include "libmaple/nvic.h" //nvic_sys_reset 
 #include "sched.h" // sched_main
 
 DECL_CONSTANT(MCU, "sam3x8e");
@@ -18,15 +19,15 @@ DECL_CONSTANT(MCU, "sam3x8e");
 void
 watchdog_reset(void)
 {
-    WDT->WDT_CR = 0xA5000001;
+    iwdg_feed();
 }
 DECL_TASK(watchdog_reset);
 
 void
 watchdog_init(void)
 {
-    uint32_t timeout = 500 * 32768 / 128 / 1000;  // 500ms timeout
-    WDT->WDT_MR = WDT_MR_WDRSTEN | WDT_MR_WDV(timeout) | WDT_MR_WDD(timeout);
+    //should be about 500ms
+    iwdg_init(IWDG_PRE_32, 500);
 }
 DECL_INIT(watchdog_init);
 
@@ -38,7 +39,7 @@ DECL_INIT(watchdog_init);
 void
 command_reset(uint32_t *args)
 {
-    NVIC_SystemReset();
+    nvic_sys_reset();
 }
 DECL_COMMAND_FLAGS(command_reset, HF_IN_SHUTDOWN, "reset");
 

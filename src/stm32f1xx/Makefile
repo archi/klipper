@@ -7,9 +7,9 @@ dirs-y += src/stm32f1xx src/generic
 #not used anymore: dirs-y += lib/cmsis-stm32f1xx/source lib/cmsis-sam3x8e/source/gcc
 
 CFLAGS += -mthumb -mcpu=cortex-m3
-CFLAGS += -Ilib/cmsis-stm32f1xx/CMSIS/core -Ilib/cmsis-stm32f1xx/CMSIS/device
-# see lib/cmsis-stm32f1xx/CMSIS/devbice/stm32f1xx.h to figure out your board!
-CFLAGS += -DSTM32F103xB 
+CFLAGS += -Ilib/stm32/libmaple/include -Ilib/stm32/libmaple
+# TODO configure MCU in menuconfig; valid values are in lib/stm32/libmaple/stm32f1/include/series/stm32.h
+CFLAGS += -DMCU_STM32F103C8
 
 #not used anymore: CFLAGS_klipper.elf += -Llib/cmsis-sam3x8e/source/gcc
 CFLAGS_klipper.elf += -T lib/cmsis-stm32f1xx/LinkerScript.ld
@@ -19,8 +19,8 @@ CFLAGS_klipper.elf += --specs=nano.specs --specs=nosys.specs
 src-y += stm32f1xx/main.c stm32f1xx/timer.c stm32f1xx/gpio.c
 src-y += generic/crc16_ccitt.c generic/alloc.c
 src-y += generic/armcm_irq.c generic/timer_irq.c
-src-y += ../lib/cmsis-stm32f1xx/source/system_sam3xa.c
-src-y += ../lib/cmsis-stm32f1xx/source/gcc/startup_sam3xa.c
+#src-y += ../lib/cmsis-stm32f1xx/source/system_sam3xa.c
+#src-y += ../lib/cmsis-stm32f1xx/source/gcc/startup_sam3xa.c
 src-$(CONFIG_SERIAL) += stm32f1xx/serial.c
 
 # Build the additional hex output file
