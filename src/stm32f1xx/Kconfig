@@ -1,0 +1,79 @@
+# Kconfig settings for STM32F1XX processors
+
+if MACH_STM32F1XX
+
+config STM32F1_SELECT
+    bool
+    default y
+    select HAVE_GPIO
+    select HAVE_GPIO_ADC
+    select HAVE_GPIO_SPI
+
+config BOARD_DIRECTORY
+    string
+    default "stm32f1xx"
+
+choice
+    prompt "Processor model"
+    config MACH_STM32F103x6
+        bool "STM32F103x4|6"
+    config MACH_STM32F103xb
+        bool "STM32F103x8|B"
+    config MACH_STM32F103xe
+        bool "STM32F103xC|D|E"
+    config MACH_STM32F103xg
+        bool "STM32F103xF|G"
+endchoice
+
+choice
+    prompt "Select SPI channel"
+    config MACH_STM32F1xx_SPI_1
+        bool "SPI1"
+    config MACH_STM32F1xx_SPI_1_REMAP
+        bool "SPI1 remap"
+    config MACH_STM32F1xx_SPI_2
+        bool "SPI2"
+endchoice
+
+config CLOCK_FREQ
+    int
+    default 36000000 # 72MHz / 2
+
+config SERIAL
+    bool
+    default y
+
+config SERIAL_BAUD
+    depends on SERIAL
+    int "Baud rate for serial port"
+    default 115200
+
+
+config STM32F1XX_STARTUP_FILE
+    string
+    default "stm32f103x6" if MACH_STM32F103x6
+    default "stm32f103xb" if MACH_STM32F103xb
+    default "stm32f103xe" if MACH_STM32F103xe
+    default "stm32f103xg" if MACH_STM32F103xg
+
+config STM32F1XX_LINKER_FILE
+    string
+    default "STM32F103X6" if MACH_STM32F103x6
+    default "STM32F103XB" if MACH_STM32F103xb
+    default "STM32F103XE" if MACH_STM32F103xe
+    default "STM32F103XG" if MACH_STM32F103xg
+
+config STM32F1XX_TYPE_DEFINE
+    string
+    default "STM32F103x6" if MACH_STM32F103x6
+    default "STM32F103xB" if MACH_STM32F103xb
+    default "STM32F103xE" if MACH_STM32F103xe
+    default "STM32F103xG" if MACH_STM32F103xg
+
+config STM32F1XX_SPI_CH
+    string
+    default "SPI1"       if MACH_STM32F1xx_SPI_1
+    default "SPI1_REMAP" if MACH_STM32F1xx_SPI_1_REMAP
+    default "SPI2"       if MACH_STM32F1xx_SPI_2
+
+endif
