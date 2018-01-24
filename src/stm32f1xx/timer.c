@@ -12,12 +12,7 @@
 #include <libmaple/../../timer_private.h>
 #include "sched.h" // DECL_INIT
 
-#if STM32_HAVE_TIMER(1)
-static timer_dev timer1 = ADVANCED_TIMER(1);
-/** Timer 1 device (advanced) */
-timer_dev *TIMER = &timer1;
-#endif
-
+#define TIMER TIMER1
 #define IRQ 0
 #define CHANNEL 0
 

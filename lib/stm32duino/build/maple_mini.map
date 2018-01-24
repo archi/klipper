@@ -1,0 +1,57 @@
+Archive member included to satisfy reference by file (symbol)
+
+/home/archi/work/gcc/bin/../lib/gcc/arm-none-eabi/6.3.1/../../../../arm-none-eabi/lib/thumb/v7-m/libc.a(lib_a-exit.o)
+                              /home/archi/work/gcc/bin/../lib/gcc/arm-none-eabi/6.3.1/../../../../arm-none-eabi/lib/thumb/v7-m/crt0.o (exit)
+/home/archi/work/gcc/bin/../lib/gcc/arm-none-eabi/6.3.1/../../../../arm-none-eabi/lib/thumb/v7-m/libc.a(lib_a-impure.o)
+                              /home/archi/work/gcc/bin/../lib/gcc/arm-none-eabi/6.3.1/../../../../arm-none-eabi/lib/thumb/v7-m/libc.a(lib_a-exit.o) (_global_impure_ptr)
+/home/archi/work/gcc/bin/../lib/gcc/arm-none-eabi/6.3.1/../../../../arm-none-eabi/lib/thumb/v7-m/libc.a(lib_a-init.o)
+                              /home/archi/work/gcc/bin/../lib/gcc/arm-none-eabi/6.3.1/../../../../arm-none-eabi/lib/thumb/v7-m/crt0.o (__libc_init_array)
+/home/archi/work/gcc/bin/../lib/gcc/arm-none-eabi/6.3.1/../../../../arm-none-eabi/lib/thumb/v7-m/libc.a(lib_a-memset.o)
+                              /home/archi/work/gcc/bin/../lib/gcc/arm-none-eabi/6.3.1/../../../../arm-none-eabi/lib/thumb/v7-m/crt0.o (memset)
+/home/archi/work/gcc/bin/../lib/gcc/arm-none-eabi/6.3.1/../../../../arm-none-eabi/lib/thumb/v7-m/libc.a(lib_a-__call_atexit.o)
+                              /home/archi/work/gcc/bin/../lib/gcc/arm-none-eabi/6.3.1/../../../../arm-none-eabi/lib/thumb/v7-m/libc.a(lib_a-exit.o) (__call_exitprocs)
+/home/archi/work/gcc/bin/../lib/gcc/arm-none-eabi/6.3.1/../../../../arm-none-eabi/lib/thumb/v7-m/libc.a(lib_a-atexit.o)
+                              /home/archi/work/gcc/bin/../lib/gcc/arm-none-eabi/6.3.1/../../../../arm-none-eabi/lib/thumb/v7-m/libc.a(lib_a-__call_atexit.o) (atexit)
+/home/archi/work/gcc/bin/../lib/gcc/arm-none-eabi/6.3.1/../../../../arm-none-eabi/lib/thumb/v7-m/libc.a(lib_a-fini.o)
+                              /home/archi/work/gcc/bin/../lib/gcc/arm-none-eabi/6.3.1/../../../../arm-none-eabi/lib/thumb/v7-m/libc.a(lib_a-__call_atexit.o) (__libc_fini_array)
+/home/archi/work/gcc/bin/../lib/gcc/arm-none-eabi/6.3.1/../../../../arm-none-eabi/lib/thumb/v7-m/libc.a(lib_a-lock.o)
+                              /home/archi/work/gcc/bin/../lib/gcc/arm-none-eabi/6.3.1/../../../../arm-none-eabi/lib/thumb/v7-m/libc.a(lib_a-__call_atexit.o) (__retarget_lock_acquire_recursive)
+/home/archi/work/gcc/bin/../lib/gcc/arm-none-eabi/6.3.1/../../../../arm-none-eabi/lib/thumb/v7-m/libc.a(lib_a-__atexit.o)
+                              /home/archi/work/gcc/bin/../lib/gcc/arm-none-eabi/6.3.1/../../../../arm-none-eabi/lib/thumb/v7-m/libc.a(lib_a-atexit.o) (__register_exitproc)
+/home/archi/work/gcc/bin/../lib/gcc/arm-none-eabi/6.3.1/../../../../arm-none-eabi/lib/thumb/v7-m/libnosys.a(_exit.o)
+                              /home/archi/work/gcc/bin/../lib/gcc/arm-none-eabi/6.3.1/../../../../arm-none-eabi/lib/thumb/v7-m/libc.a(lib_a-exit.o) (_exit)
+
+Allocating common symbols
+Common symbol       size              file
+
+SaveRState          0x2               build/./libmaple/usb/stm32f1/usb.o
+__lock___atexit_recursive_mutex
+                    0x1               /home/archi/work/gcc/bin/../lib/gcc/arm-none-eabi/6.3.1/../../../../arm-none-eabi/lib/thumb/v7-m/libc.a(lib_a-lock.o)
+__lock___arc4random_mutex
+                    0x1               /home/archi/work/gcc/bin/../lib/gcc/arm-none-eabi/6.3.1/../../../../arm-none-eabi/lib/thumb/v7-m/libc.a(lib_a-lock.o)
+SaveState           0x2               build/./libmaple/usb/usb_lib/usb_init.o
+pProperty           0x4               build/./libmaple/usb/usb_lib/usb_init.o
+__lock___env_recursive_mutex
+                    0x1               /home/archi/work/gcc/bin/../lib/gcc/arm-none-eabi/6.3.1/../../../../arm-none-eabi/lib/thumb/v7-m/libc.a(lib_a-lock.o)
+__lock___sinit_recursive_mutex
+                    0x1               /home/archi/work/gcc/bin/../lib/gcc/arm-none-eabi/6.3.1/../../../../arm-none-eabi/lib/thumb/v7-m/libc.a(lib_a-lock.o)
+EPindex             0x1               build/./libmaple/usb/usb_lib/usb_init.o
+__lock___malloc_recursive_mutex
+                    0x1               /home/archi/work/gcc/bin/../lib/gcc/arm-none-eabi/6.3.1/../../../../arm-none-eabi/lib/thumb/v7-m/libc.a(lib_a-lock.o)
+SaveTState          0x2               build/./libmaple/usb/stm32f1/usb.o
+systick_uptime_millis
+                    0x4               build/./libmaple/systick.o
+Device_Info         0x1c              build/./libmaple/usb/usb_lib/usb_init.o
+pUser_Standard_Requests
+                    0x4               build/./libmaple/usb/usb_lib/usb_init.o
+StatusInfo          0x2               build/./libmaple/usb/usb_lib/usb_core.o
+pInformation        0x4               build/./libmaple/usb/usb_lib/usb_init.o
+ResumeS             0x2               build/./libmaple/usb/stm32f1/usb.o
+__lock___at_quick_exit_mutex
+                    0x1               /home/archi/work/gcc/bin/../lib/gcc/arm-none-eabi/6.3.1/../../../../arm-none-eabi/lib/thumb/v7-m/libc.a(lib_a-lock.o)
+__lock___dd_hash_mutex
+                    0x1               /home/archi/work/gcc/bin/../lib/gcc/arm-none-eabi/6.3.1/../../../../arm-none-eabi/lib/thumb/v7-m/libc.a(lib_a-lock.o)
+__lock___tz_mutex   0x1               /home/archi/work/gcc/bin/../lib/gcc/arm-none-eabi/6.3.1/../../../../arm-none-eabi/lib/thumb/v7-m/libc.a(lib_a-lock.o)
+wInterrupt_Mask     0x2               build/./libmaple/usb/usb_lib/usb_init.o
+__lock___sfp_recursive_mutex
+                    0x1               /home/archi/work/gcc/bin/../lib/gcc/arm-none-eabi/6.3.1/../../../../arm-none-eabi/lib/thumb/v7-m/libc.a(lib_a-lock.o)

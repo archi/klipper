@@ -32,7 +32,7 @@ void
 serial_init(void)
 {
     //GPIO and bit can be found as BOARD_USB_DISC_{DEV,BIT} in stm32duino boards.h
-    usb_cdcacm_enable(GPIOA, (uint8_t)0);
+    usb_cdcacm_enable(NULL, (uint8_t)NULL);
     usb_cdcacm_set_hooks(USB_CDCACM_HOOK_RX, rx_hook);
 }
 DECL_INIT(serial_init);

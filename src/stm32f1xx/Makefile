@@ -4,14 +4,16 @@
 CROSS_PREFIX=arm-none-eabi-
 
 dirs-y += src/stm32f1xx src/generic
-dirs-y += lib/libmaple/libmaple/
+dirs-y += lib/stm32duino/wirish
+dirs-y += ../lib/stm32duino/wirish
 
 CFLAGS += -mthumb -mcpu=cortex-m3
-CFLAGS += -Ilib/libmaple/libmaple/include -Ilib/libmaple/libmaple/stm32f1/include
-CFLAGS += -DMCU_STM32F103C8 -DF_CPU=72000000L -DSERIAL_USB -DGENERIC_BOOTLOADER -DVECT_TAB_ADDR=0x8002000
+CFLAGS += -Ilib/stm32duino/libmaple/include -Ilib/stm32duino/libmaple/stm32f1/include -Ilib/stm32duino/libmaple -Ilib/stm32duino/wirish -I lib/stm32duino/ld
+CFLAGS += -DMCU_STM32F103C8 -DF_CPU=72000000L -DSERIAL_USB -DGENERIC_BOOTLOADER -DVECT_TAB_ADDR=0x8002000 -DBOARD_HAVE_SERIALUSB -D__STM32F1__
 
-CFLAGS_klipper.elf += -T lib/libmaple/support/ld/flash.ld -L lib/libmaple/support/ld -L lib/libmaple/support/ld/stm32/mem/sram_20k_flash_128k -L lib/libmaple/support/ld/toolchains/generic -L lib/libmaple/support/ld/stm32/series/stm32f1/performance/
-CFLAGS_klipper.elf += -L lib/libmaple/build
+CFLAGS_klipper.elf += -T lib/stm32duino/ld/bootloader_20.ld -L lib/stm32duino/support/ld
+CFLAGS_klipper.elf += -L lib/stm32duino/support/ld/toolchains/generic -L lib/stm32duino/ld
+CFLAGS_klipper.elf += -L lib/stm32duino/build
 CFLAGS_klipper.elf += --specs=nano.specs --specs=nosys.specs
 LDFLAGS_klipper.elf += -lmaple
 
@@ -20,6 +22,11 @@ src-y += stm32f1xx/main.c stm32f1xx/timer.c stm32f1xx/gpio.c
 src-y += generic/crc16_ccitt.c generic/alloc.c
 src-y += generic/armcm_irq.c generic/timer_irq.c
 src-$(CONFIG_SERIAL) += stm32f1xx/serial.c
+sry-cxx-y += ../lib/stm32duino/wirish/boards.cpp
+src-cxx-y += ../lib/stm32duino/wirish/boards_setup.cpp
+src-as-y += ../lib/stm32duino/wirish/start.S
+src-y += ../lib/stm32duino/wirish/start_c.c
+src-y += ../lib/stm32duino/wirish/syscalls.c
 
 # Build the additional hex output file
 target-y += $(OUT)klipper.bin

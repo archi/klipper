@@ -7,6 +7,7 @@
 #include "command.h" // DECL_CONSTANT
 #include <libmaple/iwdg.h> //iwdg_feed/iwdg_init
 #include <libmaple/nvic.h> //nvic_sys_reset 
+#include <libmaple/usb_cdcacm.h> 
 #include "sched.h" // sched_main
 
 DECL_CONSTANT(MCU, "stm32f1x3");
@@ -46,6 +47,7 @@ DECL_COMMAND_FLAGS(command_reset, HF_IN_SHUTDOWN, "reset");
 int
 main(void)
 {
-    sched_main();
+    usb_cdcacm_enable(GPIOA, (uint8_t)0);
+   // sched_main();
     return 0;
 }
