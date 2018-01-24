@@ -10,8 +10,8 @@
 #include "command.h" // shutdown
 #include "compiler.h" // ARRAY_SIZE
 #include "gpio.h" // gpio_out_setup
-#include "libmaple/gpio.h"
-#include "libmaple/adc.h"
+#include <libmaple/gpio.h>
+#include <libmaple/adc.h>
 #include "sched.h" // sched_shutdown
 
 
@@ -105,11 +105,11 @@ static const uint8_t adc_pins[] = {
 };
 
 struct adc_status_t {
-    adc_dev* adc;
+    adc_dev const *adc;
     uint8_t channel; //=255 -> free
 };
 
-struct adc_status_t adc_status[2]; 
+struct adc_status_t adc_status[2];
 
 #define ADC_FREQ_MAX 14000000
 DECL_CONSTANT(ADC_MAX, (1<<12)-1);
@@ -118,14 +118,14 @@ void
 adc_init_stm32(void)
 {
     //ADC1 and ADC2 are no compile time constants
-    adc_status[0].adc=ADC1;
-    adc_status[0].channel=255;
+    adc_status[0].adc = ADC1;
+    adc_status[0].channel = 255;
     adc_enable_single_swstart(ADC1);
     adc_set_sample_rate(ADC1, ADC_SMPR_1_5);
     adc_set_reg_seqlen(ADC1, 1);
     
-    adc_status[1].adc=ADC2;
-    adc_status[1].channel=255;
+    adc_status[1].adc = ADC2;
+    adc_status[1].channel = 255;
     adc_enable_single_swstart(ADC2);
     adc_set_sample_rate(ADC2, ADC_SMPR_1_5);
     adc_set_reg_seqlen(ADC2, 1);

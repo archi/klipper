@@ -8,10 +8,16 @@
 #include "board/misc.h" // timer_read_time
 #include "board/timer_irq.h" // timer_dispatch_many
 #include "command.h" // DECL_SHUTDOWN
-#include "libmaple/timer.h"
+#include <libmaple/timer.h>
+#include <libmaple/../../timer_private.h>
 #include "sched.h" // DECL_INIT
 
-#define TIMER TIMER1
+#if STM32_HAVE_TIMER(1)
+static timer_dev timer1 = ADVANCED_TIMER(1);
+/** Timer 1 device (advanced) */
+timer_dev *TIMER = &timer1;
+#endif
+
 #define IRQ 0
 #define CHANNEL 0
 

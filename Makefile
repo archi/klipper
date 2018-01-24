@@ -16,7 +16,6 @@ export KCONFIG_CONFIG     := $(CURDIR)/.config
 
 # Common command definitions
 CC=$(CROSS_PREFIX)gcc
-CXX=$(CROSS_PREFIX)g++
 AS=$(CROSS_PREFIX)as
 LD=$(CROSS_PREFIX)ld
 OBJCOPY=$(CROSS_PREFIX)objcopy
@@ -27,7 +26,6 @@ PYTHON=python2
 
 # Source files
 src-y =
-srcxx-y =
 dirs-y = src
 
 # Default compiler flags
@@ -35,13 +33,12 @@ cc-option=$(shell if test -z "`$(1) $(2) -S -o /dev/null -xc /dev/null 2>&1`" \
     ; then echo "$(2)"; else echo "$(3)"; fi ;)
 
 CFLAGS := -I$(OUT) -Isrc -I$(OUT)board-generic/ -O2 -MD -g \
-    -Wall $(call cc-option,$(CC),-Wtype-limits,) \
+    -Wall -Wold-style-definition $(call cc-option,$(CC),-Wtype-limits,) \
     -ffunction-sections -fdata-sections
 CFLAGS += -flto -fwhole-program -fno-use-linker-plugin
 
 CFLAGS_klipper.elf = $(CFLAGS) -Wl,--gc-sections
-
-CPPFLAGS = -I$(OUT) -P -MD -MT $@
+LDFLAGS_klipper.elf := 
 
 # Default targets
 target-y := $(OUT)klipper.elf
@@ -93,9 +90,9 @@ $(OUT)compile_time_request.o: $(patsubst %.c, $(OUT)src/%.o.ctr,$(src-y)) ./scri
 	$(Q)$(PYTHON) ./scripts/buildcommands.py -d $(OUT)klipper.dict -t "$(CC);$(AS);$(LD);$(OBJCOPY);$(OBJDUMP);$(STRIP)" $(OUT)klipper.compile_time_request $(OUT)compile_time_request.c
 	$(Q)$(CC) $(CFLAGS) -c $(OUT)compile_time_request.c -o $@
 
-$(OUT)klipper.elf: $(patsubst %.S, $(OUT)src/%.o,$(srcas-y)) $(patsubst %.c, $(OUT)src/%.o,$(src-y)) $(patsubst %.cpp, $(OUT)src/%.o,$(srcxx-y)) $(OUT)compile_time_request.o
+$(OUT)klipper.elf: $(patsubst %.c, $(OUT)src/%.o,$(src-y)) $(OUT)compile_time_request.o
 	@echo "  Linking $@"
-	$(Q)$(CC) $(CFLAGS_klipper.elf) $^ -o $@
+	$(Q)$(CC) $(CFLAGS_klipper.elf) $^ $(LDFLAGS_klipper.elf) -o $@
 
 ################ Kconfig rules
 

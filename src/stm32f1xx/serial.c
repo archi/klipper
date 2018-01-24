@@ -11,7 +11,7 @@
 #include "board/irq.h" // irq_save
 #include "board/misc.h" // console_sendf
 #include "command.h" // DECL_CONSTANT
-#include "libmaple/usb_cdcacm.h" // UART
+#include <libmaple/usb_cdcacm.h> 
 #include "sched.h" // DECL_INIT
 
 #define SERIAL_BUFFER_SIZE 96

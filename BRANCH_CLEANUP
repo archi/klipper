@@ -1,0 +1,21 @@
+This branch compiles *something*. I did not test it. Use at your own risk.
+
+Things in need of clean up:
+
+MCU name
+    Code is only STM32F1x3 as of now (variant: 20kB RAM, 64 or 128kB Flash)
+    Naming should reflect this
+
+src/generic/alloc.c
+    The default 20Kb dynamic memory in RAM is too much for the STM32F1x3
+    Quick fix: I set it to 15kb
+    Maybe make this a compile time variant
+
+Makefile
+    I had to add an LDFLAGS
+
+Lib
+    I used libmaple because of some interim issues.
+    Since libmaple is inactive, it should be changed to stm32duino.
+    Drawback: That needs a script to reconstruct a usable lib
+    Plus: I can include it
