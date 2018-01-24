@@ -11,7 +11,7 @@ choice
     config MACH_PRU
         bool "Beaglebone PRU"
     config MACH_STM32F1XX
-        bool "STM32F1xx (blue pill)"
+        bool "STM32F1x3 (blue pill)"
     config MACH_LINUX
         bool "Linux process"
     config MACH_SIMU
