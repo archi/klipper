@@ -16,7 +16,6 @@ export KCONFIG_CONFIG     := $(CURDIR)/.config
 
 # Common command definitions
 CC=$(CROSS_PREFIX)gcc
-CXX=$(CROSS_PREFIX)g++
 AS=$(CROSS_PREFIX)as
 LD=$(CROSS_PREFIX)ld
 OBJCOPY=$(CROSS_PREFIX)objcopy
@@ -27,8 +26,6 @@ PYTHON=python2
 
 # Source files
 src-y =
-src-cxx-y =
-src-as-y =
 dirs-y = src
 
 # Default compiler flags
@@ -59,11 +56,6 @@ endif
 # Include board specific makefile
 include src/Makefile
 -include src/$(patsubst "%",%,$(CONFIG_BOARD_DIRECTORY))/Makefile
-
-OBJECTS :=
-OBJECTS += $(patsubst %.c, $(OUT)src/%.o,$(src-y))
-OBJECTS += $(patsubst %.S, $(OUT)src/%.o,$(src-as-y))
-OBJECTS += $(patsubst %.cpp, $(OUT)src/%.o,$(src-cxx-y))
 
 ################ Common build rules
 
@@ -98,7 +90,7 @@ $(OUT)compile_time_request.o: $(patsubst %.c, $(OUT)src/%.o.ctr,$(src-y)) ./scri
 	$(Q)$(PYTHON) ./scripts/buildcommands.py -d $(OUT)klipper.dict -t "$(CC);$(AS);$(LD);$(OBJCOPY);$(OBJDUMP);$(STRIP)" $(OUT)klipper.compile_time_request $(OUT)compile_time_request.c
 	$(Q)$(CC) $(CFLAGS) -c $(OUT)compile_time_request.c -o $@
 
-$(OUT)klipper.elf: $(OBJECTS) $(OUT)compile_time_request.o
+$(OUT)klipper.elf: $(patsubst %.c, $(OUT)src/%.o,$(src-y)) $(OUT)compile_time_request.o
 	@echo "  Linking $@"
 	$(Q)$(CC) $(CFLAGS_klipper.elf) $^ $(LDFLAGS_klipper.elf) -o $@
 
