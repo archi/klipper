@@ -47,7 +47,6 @@ DECL_COMMAND_FLAGS(command_reset, HF_IN_SHUTDOWN, "reset");
 int
 main(void)
 {
-    SystemInit();
     sched_main();
     return 0;
 }

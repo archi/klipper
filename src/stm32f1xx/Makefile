@@ -4,24 +4,25 @@
 CROSS_PREFIX=arm-none-eabi-
 
 dirs-y += src/stm32f1xx src/generic
-#not used anymore: dirs-y += lib/cmsis-stm32f1xx/source lib/cmsis-sam3x8e/source/gcc
+dirs-y += lib/stm32/wirish
 
 CFLAGS += -mthumb -mcpu=cortex-m3
-CFLAGS += -Ilib/stm32/libmaple/include -Ilib/stm32/libmaple
-# TODO configure MCU in menuconfig; valid values are in lib/stm32/libmaple/stm32f1/include/series/stm32.h
-CFLAGS += -DMCU_STM32F103C8 -DF_CPU=72000000L
+CFLAGS += -Ilib/stm32/libmaple/include -Ilib/stm32/libmaple -Ilib/stm32/wirish
+CFLAGS += -DMCU_STM32F103C8 -DF_CPU=72000000L -DSERIAL_USB -DGENERIC_BOOTLOADER -DVECT_TAB_ADDR=0x8002000
 
-#not used anymore: CFLAGS_klipper.elf += -Llib/cmsis-sam3x8e/source/gcc
-CFLAGS_klipper.elf += -T lib/cmsis-stm32f1xx/LinkerScript.ld
+CFLAGS_klipper.elf += -L lib/stm32/wirish
+CFLAGS_klipper.elf += -T lib/stm32/ld/generic_stm32f103c_flash_c8.ld -L lib/stm32/ld/ -lmaple -L lib/stm32
 CFLAGS_klipper.elf += --specs=nano.specs --specs=nosys.specs
 
 # Add source files
 src-y += stm32f1xx/main.c stm32f1xx/timer.c stm32f1xx/gpio.c
 src-y += generic/crc16_ccitt.c generic/alloc.c
 src-y += generic/armcm_irq.c generic/timer_irq.c
-#src-y += ../lib/cmsis-stm32f1xx/source/system_sam3xa.c
-#src-y += ../lib/cmsis-stm32f1xx/source/gcc/startup_sam3xa.c
 src-$(CONFIG_SERIAL) += stm32f1xx/serial.c
+srcxx-y += ../lib/stm32/wirish/boards.cpp ../lib/stm32/wirish/boards_setup.cpp
+srcas-y += ../lib/stm32/wirish/start.S
+src-y += ../lib/stm32/wirish/start_c.c
+src-y += ../lib/stm32/wirish/syscalls.c
 
 # Build the additional hex output file
 target-y += $(OUT)klipper.bin

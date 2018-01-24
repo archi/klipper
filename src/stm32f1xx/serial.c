@@ -11,14 +11,13 @@
 #include "board/irq.h" // irq_save
 #include "board/misc.h" // console_sendf
 #include "command.h" // DECL_CONSTANT
-#include "sam3x8e.h" // UART
+#include "libmaple/usb_cdcacm.h" // UART
 #include "sched.h" // DECL_INIT
 
 #define SERIAL_BUFFER_SIZE 96
 static char receive_buf[SERIAL_BUFFER_SIZE];
 static uint32_t receive_pos;
 static char transmit_buf[SERIAL_BUFFER_SIZE];
-static uint32_t transmit_pos, transmit_max;
 
 
 /****************************************************************
@@ -27,35 +26,25 @@ static uint32_t transmit_pos, transmit_max;
 
 DECL_CONSTANT(SERIAL_BAUD, CONFIG_SERIAL_BAUD);
 
+void rx_hook(unsigned, void*);
+
 void
 serial_init(void)
 {
-    gpio_peripheral('A', PIO_PA8A_URXD, 'A', 1);
-    gpio_peripheral('A', PIO_PA9A_UTXD, 'A', 0);
-
-    // Reset uart
-    PMC->PMC_PCER0 = 1 << ID_UART;
-    UART->UART_PTCR = UART_PTCR_RXTDIS | UART_PTCR_TXTDIS;
-    UART->UART_CR = UART_CR_RSTRX | UART_CR_RSTTX | UART_CR_RXDIS | UART_CR_TXDIS;
-    UART->UART_IDR = 0xFFFFFFFF;
-
-    // Enable uart
-    UART->UART_MR = (US_MR_CHRL_8_BIT | US_MR_NBSTOP_1_BIT | UART_MR_PAR_NO
-                     | UART_MR_CHMODE_NORMAL);
-    UART->UART_BRGR = SystemCoreClock / (16 * CONFIG_SERIAL_BAUD);
-    UART->UART_IER = UART_IER_RXRDY;
-    NVIC_EnableIRQ(UART_IRQn);
-    NVIC_SetPriority(UART_IRQn, 0);
-    UART->UART_CR = UART_CR_RXEN | UART_CR_TXEN;
+    //GPIO and bit can be found as BOARD_USB_DISC_{DEV,BIT} in stm32duino boards.h
+    usb_cdcacm_enable(GPIOA, (uint8_t)0);
+    usb_cdcacm_set_hooks(USB_CDCACM_HOOK_RX, rx_hook);
 }
 DECL_INIT(serial_init);
 
 void __visible
-UART_Handler(void)
+rx_hook(unsigned hook, void* dunno)
 {
-    uint32_t status = UART->UART_SR;
-    if (status & UART_SR_RXRDY) {
-        uint8_t data = UART->UART_RHR;
+    (void)hook; (void)dunno;
+
+    while (usb_cdcacm_data_available()) {
+        uint8_t data;
+        usb_cdcacm_rx(&data, 1);
         if (data == MESSAGE_SYNC)
             sched_wake_tasks();
         if (receive_pos >= sizeof(receive_buf))
@@ -64,19 +53,6 @@ UART_Handler(void)
         receive_buf[receive_pos++] = data;
         return;
     }
-    if (status & UART_SR_TXRDY) {
-        if (transmit_pos >= transmit_max)
-            UART->UART_IDR = UART_IDR_TXRDY;
-        else
-            UART->UART_THR = transmit_buf[transmit_pos++];
-    }
-}
-
-// Enable tx interrupts
-static void
-enable_tx_irq(void)
-{
-    UART->UART_IER = UART_IDR_TXRDY;
 }
 
 
@@ -128,34 +104,8 @@ DECL_TASK(console_task);
 void
 console_sendf(const struct command_encoder *ce, va_list args)
 {
-    // Verify space for message
-    uint32_t tpos = readl(&transmit_pos), tmax = readl(&transmit_max);
-    if (tpos >= tmax) {
-        tpos = tmax = 0;
-        writel(&transmit_max, 0);
-        writel(&transmit_pos, 0);
-    }
-    uint32_t max_size = ce->max_size;
-    if (tmax + max_size > sizeof(transmit_buf)) {
-        if (tmax + max_size - tpos > sizeof(transmit_buf))
-            // Not enough space for message
-            return;
-        // Disable TX irq and move buffer
-        writel(&transmit_max, 0);
-        tpos = readl(&transmit_pos);
-        tmax -= tpos;
-        memmove(&transmit_buf[0], &transmit_buf[tpos], tmax);
-        writel(&transmit_pos, 0);
-        writel(&transmit_max, tmax);
-        enable_tx_irq();
-    }
-
     // Generate message
-    char *buf = &transmit_buf[tmax];
-    uint32_t msglen = command_encodef(buf, ce, args);
-    command_add_frame(buf, msglen);
-
-    // Start message transmit
-    writel(&transmit_max, tmax + msglen);
-    enable_tx_irq();
+    uint32_t msglen = command_encodef(transmit_buf, ce, args);
+    command_add_frame(transmit_buf, msglen);
+    usb_cdcacm_tx((uint8_t*)transmit_buf, msglen);
 }

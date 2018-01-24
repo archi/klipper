@@ -109,7 +109,7 @@ struct adc_status_t {
     uint8_t channel; //=255 -> free
 };
 
-struct adc_status_t adc_status[]; 
+struct adc_status_t adc_status[2]; 
 
 #define ADC_FREQ_MAX 14000000
 DECL_CONSTANT(ADC_MAX, (1<<12)-1);
