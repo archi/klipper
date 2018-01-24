@@ -1,3 +1,10 @@
+== ATTENTION ==
+This branch is broken and needs a lot of work (especially concerning
+libmaple). You have been warned.
+
+== Original Project Description ==
+
+
 Welcome to the Klipper project!
 
 This project implements a 3d-printer firmware. There are two parts to
