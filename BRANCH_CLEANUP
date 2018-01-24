@@ -16,6 +16,16 @@ Makefile
 
 Lib
     I used libmaple because of some interim issues.
-    Since libmaple is inactive, it should be changed to stm32duino.
+    Since libmaple is inactive, it should be changed to stm32duino
     Drawback: That needs a script to reconstruct a usable lib
-    Plus: I can include it
+    Plus side: License is a bit more clear, stm32duino seems hacky in parts
+
+====
+How to build:
+
+pushd lib/libmaple/
+make BOARD=maple_mini library
+popd
+
+make menuconfig ; set stm32f1x3
+make

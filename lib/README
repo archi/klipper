@@ -23,8 +23,8 @@ from the repo's hc-sr04-range-sensor directory. It has been modified
 so that the IEP definitions compile correctly. See pru_rpmsg.patch for
 the modifications.
 
-Due to licensing questions, cmsis-stm32f1xx is not included.
-I extracted it from this example project:
- http://stefanfrings.de/stm32/blink_CMSIS.zip
-Patch lib/cmsis-stm32f1xx/CMSIS/device/stm32f1xx.h line 90 to COMMENT the #define STM32F103xB
-TODO get a better source
+The libmaple directory contains a slightly patched snapshot of
+  https://github.com/leaflabs/libmaple
+revision a2d1169b0b5a5de68140dad26982cf0f238e877b.
+The patch only disables the three modules Servo, LiquidCrystal and
+Wire in the root Makefile
