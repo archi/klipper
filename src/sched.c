@@ -15,6 +15,10 @@
 #include "sched.h" // sched_check_periodic
 #include "stepper.h" // stepper_event
 
+#ifdef __LPC176x__
+#include "lpc176x/pins_MKS.h"
+static uint32_t state = 0;
+#endif
 
 /****************************************************************
  * Timers
@@ -29,6 +33,7 @@ static struct timer sentinel_timer, deleted_timer;
 static uint_fast8_t
 periodic_event(struct timer *t)
 {
+    (void)t;
     // Make sure the stats task runs periodically
     sched_wake_tasks();
     // Reschedule timer
@@ -50,6 +55,7 @@ static struct timer periodic_timer = {
 static uint_fast8_t
 sentinel_event(struct timer *t)
 {
+    (void)t;
     shutdown("sentinel timer called");
 }
 
@@ -59,7 +65,7 @@ static struct timer sentinel_timer = {
 };
 
 // Find position for a timer in timer_list and insert it
-static void __always_inline
+static __always_inline void
 insert_timer(struct timer *t, uint32_t waketime)
 {
     struct timer *prev, *pos = timer_list;
@@ -105,6 +111,7 @@ sched_add_timer(struct timer *add)
 static uint_fast8_t
 deleted_event(struct timer *t)
 {
+    (void)t;
     return SF_DONE;
 }
 
@@ -249,6 +256,11 @@ run_tasks(void)
         uint32_t cur = timer_read_time();
         stats_update(start, cur);
         start = cur;
+
+#ifdef __LPC176x__
+        state ^= 1;
+        gpio_out_write(SBASE_LED2, state);
+#endif
     }
 }
 
@@ -282,6 +294,7 @@ sched_clear_shutdown(void)
 static void
 run_shutdown(int reason)
 {
+    irq_disable();
     uint32_t cur = timer_read_time();
     if (!shutdown_status)
         shutdown_reason = reason;
@@ -292,6 +305,9 @@ run_shutdown(int reason)
     shutdown_status = 1;
     irq_enable();
 
+#ifdef __LPC176x__
+    serial_uart_printf("shutdown static_string_id=%d\n", shutdown_reason);
+#endif
     sendf("shutdown clock=%u static_string_id=%hu", cur, shutdown_reason);
 }
 
@@ -299,6 +315,9 @@ run_shutdown(int reason)
 void
 sched_report_shutdown(void)
 {
+#ifdef __LPC176x__
+    serial_uart_printf("is_shutdown static_string_id=%d\n", shutdown_reason);
+#endif
     sendf("is_shutdown static_string_id=%hu", shutdown_reason);
 }
 
@@ -333,10 +352,24 @@ sched_main(void)
     ctr_run_initfuncs();
 
     sendf("starting");
+#ifdef __LPC176x__
+    serial_uart_puts("starting\n");
+    gpio_out_write(SBASE_LED1, 1);
+#endif
 
+    irq_disable();
     int ret = setjmp(shutdown_jmp);
     if (ret)
         run_shutdown(ret);
 
+#ifdef __LPC176x__
+    serial_uart_puts("enter to sched loop\n");
+#endif
+    irq_enable();
+
     run_tasks();
+#ifdef __LPC176x__
+    serial_uart_puts("exit\n");
+    gpio_out_write(SBASE_LED1, 0);
+#endif
 }

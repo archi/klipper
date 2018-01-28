@@ -3,6 +3,7 @@
 // Copyright (C) 2016  Kevin O'Connor <kevin@koconnor.net>
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
+#include "autoconf.h"
 
 #include "basecmd.h" // oid_alloc
 #include "board/gpio.h" // struct gpio_out
@@ -11,6 +12,9 @@
 #include "command.h" // DECL_COMMAND
 #include "sched.h" // sched_add_timer
 
+#if (CONFIG_SIMULATOR == 1 && CONFIG_MACH_LINUX == 1)
+#include <stdio.h>
+#endif
 
 /****************************************************************
  * Digital out pins
@@ -26,6 +30,7 @@ struct digital_out_s {
 static uint_fast8_t
 digital_end_event(struct timer *timer)
 {
+    (void)timer;
     shutdown("Missed scheduling of next pin event");
 }
 
@@ -33,6 +38,10 @@ static uint_fast8_t
 digital_out_event(struct timer *timer)
 {
     struct digital_out_s *d = container_of(timer, struct digital_out_s, timer);
+#if (CONFIG_SIMULATOR == 1 && CONFIG_MACH_LINUX == 1)
+    printf("GPIO event: pin %d value %u (default %u)\n",
+           d->pin.fd, d->value, d->default_value);
+#endif
     gpio_out_write(d->pin, d->value);
     if (d->value == d->default_value || !d->max_duration)
         return SF_DONE;
@@ -74,6 +83,9 @@ digital_out_shutdown(void)
     uint8_t i;
     struct digital_out_s *d;
     foreach_oid(i, d, command_config_digital_out) {
+#if (CONFIG_SIMULATOR == 1 && CONFIG_MACH_LINUX == 1)
+        printf("GPIO shutdown: oid %u\n", i);
+#endif
         gpio_out_write(d->pin, d->default_value);
     }
 }
@@ -115,6 +127,9 @@ static uint_fast8_t
 soft_pwm_toggle_event(struct timer *timer)
 {
     struct soft_pwm_s *s = container_of(timer, struct soft_pwm_s, timer);
+#if (CONFIG_SIMULATOR == 1 && CONFIG_MACH_LINUX == 1)
+    printf("SoftPWM toggle event\n");
+#endif
     gpio_out_toggle(s->pin);
     s->flags ^= SPF_ON;
     uint32_t waketime = s->timer.waketime;
@@ -136,13 +151,16 @@ static uint_fast8_t
 soft_pwm_load_event(struct timer *timer)
 {
     struct soft_pwm_s *s = container_of(timer, struct soft_pwm_s, timer);
+#if (CONFIG_SIMULATOR == 1 && CONFIG_MACH_LINUX == 1)
+    printf("SoftPWM load event\n");
+#endif
     if (!(s->flags & SPF_HAVE_NEXT))
         shutdown("Missed scheduling of next pwm event");
     uint8_t flags = s->flags >> 4;
     s->flags = flags;
     gpio_out_write(s->pin, flags & SPF_ON);
     if (!(flags & SPF_TOGGLING)) {
-        // Pin is in an always on (value=255) or always off (value=0) state
+        // Pin is in an always on (value=256) or always off (value=0) state
         if (!(flags & SPF_CHECK_END))
             return SF_DONE;
         s->timer.waketime = s->end_time = s->end_time + s->max_duration;
@@ -199,7 +217,7 @@ command_schedule_soft_pwm_out(uint32_t *args)
     s->end_time = time;
     s->next_on_duration = next_on_duration;
     s->next_off_duration = next_off_duration;
-    s->flags |= next_flags;
+    s->flags = (s->flags & 0xf) | next_flags;
     if (s->flags & SPF_TOGGLING && timer_is_before(s->timer.waketime, time)) {
         // soft_pwm_toggle_event() will schedule a load event when ready
     } else {
@@ -220,6 +238,9 @@ soft_pwm_shutdown(void)
     uint8_t i;
     struct soft_pwm_s *s;
     foreach_oid(i, s, command_config_soft_pwm_out) {
+#if (CONFIG_SIMULATOR == 1 && CONFIG_MACH_LINUX == 1)
+        printf("SoftPWM shutdown: oid %u\n", i);
+#endif
         gpio_out_write(s->pin, s->default_value);
         s->flags = s->default_value ? SPF_ON : 0;
     }

@@ -4,17 +4,22 @@
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
 
+#include "autoconf.h"
 #include </usr/include/sched.h> // sched_setscheduler
-#include <stdio.h> // fprintf
+#include <stdio.h>  // fprintf
 #include <string.h> // memset
 #include <unistd.h> // getopt
+#include <ctype.h>  // isprint
 #include "board/misc.h" // console_sendf
-#include "command.h" // DECL_CONSTANT
-#include "internal.h" // console_setup
-#include "sched.h" // sched_main
+#include "command.h"    // DECL_CONSTANT
+#include "internal.h"   // console_setup
+#include "sched.h"      // sched_main
 
-DECL_CONSTANT(MCU, "linux");
+DECL_CONSTANT(MCU, CONFIG_MCU);
 
+#if (CONFIG_SIMULATOR == 1)
+int SIMULATOR_MODE = CONFIG_SIMULATOR;
+#endif
 
 /****************************************************************
  * Real-time setup
@@ -59,10 +64,12 @@ DECL_COMMAND_FLAGS(command_config_reset, HF_IN_SHUTDOWN, "config_reset");
 int
 main(int argc, char **argv)
 {
+    char * ttystr = "/tmp/klipper_host_mcu";
+
     // Parse program args
     orig_argv = argv;
     int opt, watchdog = 0, realtime = 0;
-    while ((opt = getopt(argc, argv, "wr")) != -1) {
+    while ((opt = getopt(argc, argv, "wrt:")) != -1) {
         switch (opt) {
         case 'w':
             watchdog = 1;
@@ -70,8 +77,16 @@ main(int argc, char **argv)
         case 'r':
             realtime = 1;
             break;
+        case 't':
+            ttystr = optarg;
+            break;
         default:
-            fprintf(stderr, "Usage: %s [-w] [-r]\n", argv[0]);
+            if (optopt == 't')
+                fprintf (stderr, "Option -%c requires an argument.\n", optopt);
+            else if (isprint (optopt))
+                fprintf (stderr, "Unknown option `-%c'.\n", optopt);
+            else
+                fprintf(stderr, "Usage: %s [-w] [-r]\n", argv[0]);
             return -1;
         }
     }
@@ -82,9 +97,15 @@ main(int argc, char **argv)
         if (ret)
             return ret;
     }
-    int ret = console_setup("/tmp/klipper_host_mcu");
+#if (CONFIG_SIMULATOR == 1)
+    printf("Init TTY: %s\n", ttystr);
+#endif
+    int ret = console_setup(ttystr);
     if (ret)
         return -1;
+#if (CONFIG_SIMULATOR == 1)
+    printf("TTY ready\n");
+#endif
     if (watchdog) {
         int ret = watchdog_setup();
         if (ret)

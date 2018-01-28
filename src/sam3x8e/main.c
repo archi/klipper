@@ -5,7 +5,7 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 
 #include "command.h" // DECL_CONSTANT
-#include "sam3x8e.h" // WDT
+#include <sam3x8e.h> // WDT
 #include "sched.h" // sched_main
 
 DECL_CONSTANT(MCU, "sam3x8e");
@@ -38,6 +38,7 @@ DECL_INIT(watchdog_init);
 void
 command_reset(uint32_t *args)
 {
+    (void)args;
     NVIC_SystemReset();
 }
 DECL_COMMAND_FLAGS(command_reset, HF_IN_SHUTDOWN, "reset");

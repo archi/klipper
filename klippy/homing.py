@@ -3,16 +3,16 @@
 # Copyright (C) 2016,2017  Kevin O'Connor <kevin@koconnor.net>
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
-import logging
+import math
 
-HOMING_DELAY = 0.250
+HOMING_STEP_DELAY = 0.00000025
 ENDSTOP_SAMPLE_TIME = .000015
 ENDSTOP_SAMPLE_COUNT = 4
 
 class Homing:
-    def __init__(self, toolhead, changed_axes):
+    def __init__(self, toolhead):
         self.toolhead = toolhead
-        self.changed_axes = changed_axes
+        self.changed_axes = []
         self.verify_retract = True
     def set_no_verify_retract(self):
         self.verify_retract = False
@@ -27,53 +27,91 @@ class Homing:
             if coord[i] is not None:
                 thcoord[i] = coord[i]
         return thcoord
-    def retract(self, newpos, speed):
-        self.toolhead.move(self._fill_coord(newpos), speed)
-    def home(self, forcepos, movepos, steppers, speed, second_home=False):
-        # Alter kinematics class to think printer is at forcepos
-        self.toolhead.set_position(self._fill_coord(forcepos))
-        # Start homing and issue move
-        if not second_home:
-            self.toolhead.dwell(HOMING_DELAY)
-        print_time = self.toolhead.get_last_move_time()
-        endstops = []
-        for s in steppers:
-            s.mcu_endstop.home_start(print_time, ENDSTOP_SAMPLE_TIME,
-                                     ENDSTOP_SAMPLE_COUNT, s.step_dist / speed)
-            endstops.append((s, s.mcu_stepper.get_mcu_position()))
-        self.toolhead.move(self._fill_coord(movepos), speed)
-        move_end_print_time = self.toolhead.get_last_move_time()
-        self.toolhead.reset_print_time(print_time)
-        for s, last_pos in endstops:
-            s.mcu_endstop.home_finalize(move_end_print_time)
-        # Wait for endstops to trigger
-        for s, last_pos in endstops:
-            try:
-                s.mcu_endstop.home_wait()
-            except s.mcu_endstop.error as e:
-                raise EndstopError("Failed to home stepper %s: %s" % (
-                    s.name, str(e)))
-            post_home_pos = s.mcu_stepper.get_mcu_position()
-            if second_home and self.verify_retract and last_pos == post_home_pos:
-                raise EndstopError("Endstop %s still triggered after retract" % (
-                    s.name,))
+    def retract(self, newpos, speed, check=True):
+        self.toolhead.move(self._fill_coord(newpos), speed, check=check)
     def set_homed_position(self, pos):
         self.toolhead.set_position(self._fill_coord(pos))
+    def _get_homing_speed(self, speed, endstops):
+        # Round the requested homing speed so that it is an even
+        # number of ticks per step.
+        speed = min(speed, self.toolhead.get_max_velocity()[0])
+        mcu_stepper = endstops[0][0].get_steppers()[0]
+        adjusted_freq = mcu_stepper.get_mcu().get_adjusted_freq()
+        dist_ticks = adjusted_freq * mcu_stepper.get_step_dist()
+        ticks_per_step = math.ceil(dist_ticks / speed)
+        return dist_ticks / ticks_per_step
+    def homing_move(self, movepos, endstops, speed):
+        # Start endstop checking
+        print_time = self.toolhead.get_last_move_time()
+        for mcu_endstop, name in endstops:
+            min_step_dist = min([s.get_step_dist()
+                                 for s in mcu_endstop.get_steppers()])
+            mcu_endstop.home_start(
+                print_time, ENDSTOP_SAMPLE_TIME, ENDSTOP_SAMPLE_COUNT,
+                min_step_dist / speed)
+        # Issue move
+        error = None
+        try:
+            self.toolhead.move(self._fill_coord(movepos), speed)
+        except EndstopError as e:
+            error = "Error during homing move: %s" % (str(e),)
+        # Wait for endstops to trigger
+        move_end_print_time = self.toolhead.get_last_move_time()
+        self.toolhead.reset_print_time(print_time)
+        for mcu_endstop, name in endstops:
+            try:
+                mcu_endstop.home_wait(move_end_print_time)
+            except mcu_endstop.TimeoutError as e:
+                if error is None:
+                    error = "Failed to home %s: %s" % (name, str(e))
+        if error is not None:
+            raise EndstopError(error)
+    def home(self, forcepos, movepos, endstops, speed, second_home=False):
+        # Alter kinematics class to think printer is at forcepos
+        self.toolhead.set_position(self._fill_coord(forcepos))
+        # Add a CPU delay when homing a large axis
+        if not second_home:
+            est_move_d = sum([abs(forcepos[i]-movepos[i])
+                              for i in range(3) if movepos[i] is not None])
+            est_steps = sum([est_move_d / s.get_step_dist()
+                             for es, n in endstops for s in es.get_steppers()])
+            self.toolhead.dwell(est_steps * HOMING_STEP_DELAY, check_stall=False)
+            speed = self._get_homing_speed(speed, endstops)
+        # Setup for retract verification
+        self.toolhead.get_last_move_time()
+        start_mcu_pos = [(s, name, s.get_mcu_position())
+                         for es, name in endstops for s in es.get_steppers()]
+        # Issue homing move
+        self.homing_move(movepos, endstops, speed)
+        # Verify retract led to some movement on second home
+        if second_home and self.verify_retract:
+            for s, name, pos in start_mcu_pos:
+                if s.get_mcu_position() == pos:
+                    raise EndstopError(
+                        "Endstop %s still triggered after retract" % (name,))
+    def home_axes(self, axes):
+        self.changed_axes = axes
+        try:
+            self.toolhead.get_kinematics().home(self)
+        except EndstopError:
+            self.toolhead.motor_off()
+            raise
 
-def query_endstops(print_time, query_flags, steppers):
-    if query_flags == "get_mcu_position":
-        # Only the commanded position is requested
-        return [(s.name.upper(), s.mcu_stepper.get_mcu_position())
-                for s in steppers]
-    for s in steppers:
-        s.mcu_endstop.query_endstop(print_time)
+def query_endstops(toolhead):
+    print_time = toolhead.get_last_move_time()
+    steppers = toolhead.get_kinematics().get_steppers()
     out = []
     for s in steppers:
-        try:
-            out.append((s.name, s.mcu_endstop.query_endstop_wait()))
-        except s.mcu_endstop.error as e:
-            raise EndstopError(str(e))
+        for mcu_endstop, name in s.get_endstops():
+            mcu_endstop.query_endstop(print_time)
+    for s in steppers:
+        for mcu_endstop, name in s.get_endstops():
+            out.append((name, mcu_endstop.query_endstop_wait()))
     return out
+
+def query_position(toolhead):
+    steppers = toolhead.get_kinematics().get_steppers()
+    return [(s.name.upper(), s.mcu_stepper.get_mcu_position()) for s in steppers]
 
 class EndstopError(Exception):
     pass

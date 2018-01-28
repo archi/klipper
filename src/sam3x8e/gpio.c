@@ -10,7 +10,7 @@
 #include "command.h" // shutdown
 #include "compiler.h" // ARRAY_SIZE
 #include "gpio.h" // gpio_out_setup
-#include "sam3x8e.h" // Pio
+#include <sam3x8e.h> // Pio
 #include "sched.h" // sched_shutdown
 
 
@@ -18,7 +18,6 @@
  * Pin mappings
  ****************************************************************/
 
-#define GPIO(PORT, NUM) (((PORT)-'A') * 32 + (NUM))
 #define GPIO2PORT(PIN) ((PIN) / 32)
 #define GPIO2BIT(PIN) (1<<((PIN) % 32))
 
@@ -35,15 +34,16 @@ void
 gpio_peripheral(char bank, uint32_t bit, char ptype, uint32_t pull_up)
 {
     Pio *regs = digital_regs[bank - 'A'];
+    regs->PIO_IDR = bit;
     if (ptype == 'A')
         regs->PIO_ABSR &= ~bit;
     else
         regs->PIO_ABSR |= bit;
+    regs->PIO_PDR = bit;
     if (pull_up)
         regs->PIO_PUER = bit;
     else
         regs->PIO_PUDR = bit;
-    regs->PIO_PDR = bit;
 }
 
 
@@ -127,14 +127,15 @@ static const uint8_t adc_pins[] = {
     GPIO('B', 19), GPIO('B', 20)
 };
 
-#define ADC_FREQ_MAX 20000000
+#define ADC_FREQ_MAX 20000000u
+//#define ADC_FREQ_MAX 1000000UUL
 DECL_CONSTANT(ADC_MAX, 4095);
 
 struct gpio_adc
 gpio_adc_setup(uint8_t pin)
 {
     // Find pin in adc_pins table
-    int chan;
+    uint32_t chan;
     for (chan=0; ; chan++) {
         if (chan >= ARRAY_SIZE(adc_pins))
             shutdown("Not a valid ADC pin");
@@ -175,7 +176,8 @@ gpio_adc_sample(struct gpio_adc g)
     // Conversion ready
     return 0;
 need_delay:
-    return ADC_FREQ_MAX * 1000ULL / CONFIG_CLOCK_FREQ;
+    //return ADC_FREQ_MAX * 1000ULL / CONFIG_CLOCK_FREQ;
+    return (CONFIG_CLOCK_FREQ / (ADC_FREQ_MAX * 2)); // Half of the ADC time
 }
 
 // Read a value; use only after gpio_adc_sample() returns zero
@@ -190,8 +192,9 @@ gpio_adc_read(struct gpio_adc g)
 void
 gpio_adc_cancel_sample(struct gpio_adc g)
 {
-    irqstatus_t flag = irq_save();
-    if ((ADC->ADC_CHSR & 0xffff) == g.bit)
-        gpio_adc_read(g);
-    irq_restore(flag);
+    //irqstatus_t flag = irq_save();
+    //if ((ADC->ADC_CHSR & 0xffff) == g.bit)
+    //    gpio_adc_read(g);
+    //irq_restore(flag);
+    ADC->ADC_CHDR = g.bit;
 }

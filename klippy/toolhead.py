@@ -3,7 +3,7 @@
 # Copyright (C) 2016  Kevin O'Connor <kevin@koconnor.net>
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
-import math, logging
+import math
 import mcu, homing, cartesian, corexy, delta, extruder
 
 # Common suffixes: _d is distance (in mm), _v is velocity (in
@@ -182,17 +182,20 @@ STALL_TIME = 0.100
 # Main code to track events (and their timing) on the printer toolhead
 class ToolHead:
     def __init__(self, printer, config):
+        self.logger = printer.logger.getChild('toolhead')
+        self.logger.debug("Add toolhead '{}'".format(config.section))
         self.printer = printer
         self.reactor = printer.reactor
         self.all_mcus = mcu.get_printer_mcus(printer)
         self.mcu = self.all_mcus[0]
+        self.homing_order = config.get('homing_order', 'XYZ').upper()
         self.max_velocity = config.getfloat('max_velocity', above=0.)
         self.max_accel = config.getfloat('max_accel', above=0.)
         self.max_accel_to_decel = config.getfloat(
             'max_accel_to_decel', self.max_accel * 0.5
             , above=0., maxval=self.max_accel)
         self.junction_deviation = config.getfloat(
-            'junction_deviation', 0.02, above=0.)
+            'junction_deviation', 0.02, minval=0.)
         self.move_queue = MoveQueue()
         self.commanded_pos = [0., 0., 0., 0.]
         # Print time tracking
@@ -291,7 +294,7 @@ class ToolHead:
             if print_time != self.print_time:
                 self.last_flush_from_idle = True
         except:
-            logging.exception("Exception in flush_handler")
+            self.logger.exception("Exception in flush_handler")
             self.printer.invoke_shutdown("Exception in flush_handler")
         return self.reactor.NEVER
     # Motor off timer
@@ -304,9 +307,12 @@ class ToolHead:
         try:
             self.motor_off()
         except:
-            logging.exception("Exception in motor_off_handler")
+            self.logger.exception("Exception in motor_off_handler")
             self.printer.invoke_shutdown("Exception in motor_off_handler")
         return eventtime + self.motor_off_time
+    # Homing offset (GCode command)
+    def set_homing_offset(self, offsets):
+        self.kin.set_homing_offset(offsets)
     # Movement commands
     def get_position(self):
         return list(self.commanded_pos)
@@ -314,12 +320,12 @@ class ToolHead:
         self._flush_lookahead()
         self.commanded_pos[:] = newpos
         self.kin.set_position(newpos)
-    def move(self, newpos, speed):
+    def move(self, newpos, speed, check=True):
         speed = min(speed, self.max_velocity)
         move = Move(self, self.commanded_pos, newpos, speed)
         if not move.move_d:
             return
-        if move.is_kinematic_move:
+        if move.is_kinematic_move and check:
             self.kin.check_move(move)
         if move.axes_d[3]:
             self.extruder.check_move(move)
@@ -327,12 +333,11 @@ class ToolHead:
         self.move_queue.add_move(move)
         if self.print_time > self.need_check_stall:
             self._check_stall()
-    def home(self, homing_state):
-        self.kin.home(homing_state)
-    def dwell(self, delay):
+    def dwell(self, delay, check_stall=True):
         self.get_last_move_time()
         self.update_move_time(delay)
-        self._check_stall()
+        if check_stall:
+            self._check_stall()
     def motor_off(self):
         self.dwell(STALL_TIME)
         last_move_time = self.get_last_move_time()
@@ -340,7 +345,7 @@ class ToolHead:
         self.extruder.motor_off(last_move_time)
         self.dwell(STALL_TIME)
         self.need_motor_off = False
-        logging.debug('; Max time of %f', last_move_time)
+        self.logger.debug('; Max time of %f', last_move_time)
     def wait_moves(self):
         self._flush_lookahead()
         if self.mcu.is_fileoutput():
@@ -349,12 +354,9 @@ class ToolHead:
         while (not self.sync_print_time
                or self.print_time >= self.mcu.estimated_print_time(eventtime)):
             eventtime = self.reactor.pause(eventtime + 0.100)
-    def query_endstops(self, query_flags=""):
-        last_move_time = self.get_last_move_time()
-        return self.kin.query_endstops(last_move_time, query_flags)
     def set_extruder(self, extruder):
         last_move_time = self.get_last_move_time()
-        self.extruder.set_active(last_move_time, False)
+        self.extruder.set_active(last_move_time, False) # Useless...
         extrude_pos = extruder.set_active(last_move_time, True)
         self.extruder = extruder
         self.move_queue.set_extruder(extruder)
@@ -376,7 +378,9 @@ class ToolHead:
             self.move_queue.reset()
             self.reset_print_time()
         except:
-            logging.exception("Exception in do_shutdown")
+            self.logger.exception("Exception in do_shutdown")
+    def get_kinematics(self):
+        return self.kin
     def get_max_velocity(self):
         return self.max_velocity, self.max_accel
     def get_max_axis_halt(self):

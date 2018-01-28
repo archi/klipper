@@ -3,21 +3,24 @@
 # Copyright (C) 2016  Kevin O'Connor <kevin@koconnor.net>
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
-import logging
 import stepper, homing
 
 StepList = (0, 1, 2)
 
 class CartKinematics:
+    name = "cartesian"
     def __init__(self, toolhead, printer, config):
-        self.steppers = [stepper.PrinterHomingStepper(
-            printer, config.getsection('stepper_' + n), n)
+        self.logger = printer.logger.getChild(self.name)
+        self.steppers = [stepper.LookupMultiHomingStepper(
+            printer, config.getsection('stepper_' + n))
                          for n in ['x', 'y', 'z']]
         max_velocity, max_accel = toolhead.get_max_velocity()
         self.max_z_velocity = config.getfloat(
             'max_z_velocity', max_velocity, above=0., maxval=max_velocity)
         self.max_z_accel = config.getfloat(
             'max_z_accel', max_accel, above=0., maxval=max_accel)
+        self.require_home_after_motor_off = config.getboolean(
+            'require_home_after_motor_off', True)
         self.need_motor_enable = True
         self.limits = [(1.0, -1.0)] * 3
         # Setup stepper max halt velocity
@@ -26,13 +29,23 @@ class CartKinematics:
         self.steppers[1].set_max_jerk(max_halt_velocity, max_accel)
         self.steppers[2].set_max_jerk(
             min(max_halt_velocity, self.max_z_velocity), max_accel)
+    def set_homing_offset(self, offsets):
+        for s in self.steppers:
+            try:
+                s.set_homing_offset(offsets[s.name])
+            except (KeyError):
+                pass
+    def get_steppers(self):
+        return list(self.steppers)
     def set_position(self, newpos):
         for i in StepList:
-            self.steppers[i].mcu_stepper.set_position(newpos[i])
+            self.steppers[i].set_position(newpos[i])
     def home(self, homing_state):
         # Each axis is homed independently and in order
         for axis in homing_state.get_axes():
             s = self.steppers[axis]
+            if hasattr(s.driver, 'set_sensor_less_homing'):
+                s.driver.set_sensor_less_homing(enable=True)
             self.limits[axis] = (s.position_min, s.position_max)
             # Determine moves
             if s.homing_positive_dir:
@@ -46,26 +59,38 @@ class CartKinematics:
                 rpos = s.position_endstop + s.homing_retract_dist
                 r2pos = rpos + s.homing_retract_dist
             # Initial homing
-            homing_speed = s.get_homing_speed()
+            homing_speed = s.homing_speed
+            if axis == 2:
+                homing_speed = min(homing_speed, self.max_z_velocity)
             homepos = [None, None, None, None]
+            # Set Z homing position if defined
+            homing_state.retract([s.homing_pos_x, # X axis position
+                                  s.homing_pos_y, # Y axis position
+                                  None, None],
+                                 self.steppers[0].homing_speed)
             homepos[axis] = s.position_endstop
             coord = [None, None, None, None]
             coord[axis] = pos
-            homing_state.home(list(coord), homepos, [s], homing_speed)
+            homing_state.home(coord, homepos, s.get_endstops(), homing_speed)
             # Retract
             coord[axis] = rpos
-            homing_state.retract(list(coord), homing_speed)
+            homing_state.retract(coord, homing_speed)
             # Home again
             coord[axis] = r2pos
-            homing_state.home(
-                list(coord), homepos, [s], homing_speed/2.0, second_home=True)
+            homing_state.home(coord, homepos, s.get_endstops(),
+                              homing_speed/2.0, second_home=True)
             # Set final homed position
             coord[axis] = s.position_endstop + s.get_homed_offset()
             homing_state.set_homed_position(coord)
-    def query_endstops(self, print_time, query_flags):
-        return homing.query_endstops(print_time, query_flags, self.steppers)
+            if axis == 2 and s.retract_after_home is True:
+                # Retract
+                coord[axis] = rpos
+                homing_state.retract(list(coord), homing_speed)
+            if hasattr(s.driver, 'set_sensor_less_homing'):
+                s.driver.set_sensor_less_homing(enable=False)
     def motor_off(self, print_time):
-        self.limits = [(1.0, -1.0)] * 3
+        if self.require_home_after_motor_off is True:
+            self.limits = [(1.0, -1.0)] * 3
         for stepper in self.steppers:
             stepper.motor_enable(print_time, 0)
         self.need_motor_enable = True
@@ -79,13 +104,17 @@ class CartKinematics:
     def _check_endstops(self, move):
         end_pos = move.end_pos
         for i in StepList:
-            if (move.axes_d[i]
-                and (end_pos[i] < self.limits[i][0]
-                     or end_pos[i] > self.limits[i][1])):
+            if (move.axes_d[i] and (end_pos[i] < self.limits[i][0] or end_pos[i] > self.limits[i][1])):
                 if self.limits[i][0] > self.limits[i][1]:
                     raise homing.EndstopMoveError(
                         end_pos, "Must home axis first")
                 raise homing.EndstopMoveError(end_pos)
+    def is_homed(self):
+        ret = [1, 1, 1]
+        for i in StepList:
+            if self.limits[i][0] > self.limits[i][1]:
+                ret[i] = 0
+        return ret
     def check_move(self, move):
         limits = self.limits
         xpos, ypos = move.end_pos[:2]
@@ -107,7 +136,7 @@ class CartKinematics:
             axis_d = move.axes_d[i]
             if not axis_d:
                 continue
-            mcu_stepper = self.steppers[i].mcu_stepper
+            step_const = self.steppers[i].step_const
             move_time = print_time
             start_pos = move.start_pos[i]
             axis_r = abs(axis_d) / move.move_d
@@ -117,19 +146,17 @@ class CartKinematics:
             # Acceleration steps
             if move.accel_r:
                 accel_d = move.accel_r * axis_d
-                mcu_stepper.step_const(
-                    move_time, start_pos, accel_d, move.start_v * axis_r, accel)
+                step_const(move_time, start_pos, accel_d,
+                           move.start_v * axis_r, accel)
                 start_pos += accel_d
                 move_time += move.accel_t
             # Cruising steps
             if move.cruise_r:
                 cruise_d = move.cruise_r * axis_d
-                mcu_stepper.step_const(
-                    move_time, start_pos, cruise_d, cruise_v, 0.)
+                step_const(move_time, start_pos, cruise_d, cruise_v, 0.)
                 start_pos += cruise_d
                 move_time += move.cruise_t
             # Deceleration steps
             if move.decel_r:
                 decel_d = move.decel_r * axis_d
-                mcu_stepper.step_const(
-                    move_time, start_pos, decel_d, cruise_v, -accel)
+                step_const(move_time, start_pos, decel_d, cruise_v, -accel)

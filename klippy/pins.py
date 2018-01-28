@@ -5,7 +5,6 @@
 # This file may be distributed under the terms of the GNU GPLv3 license.
 import re
 
-
 ######################################################################
 # Hardware pin names
 ######################################################################
@@ -30,14 +29,27 @@ def beaglebone_pins():
     gpios.update({"AIN%d" % i: i+4*32 for i in range(8)})
     return gpios
 
+def lpc_arm_port_pins(port_count, bit_count=32):
+    pins = {}
+    for port in range(port_count):
+        for portbit in range(bit_count):
+            pins['P%u.%u' % (port, portbit)] = (port * bit_count) + portbit
+    return pins
+
 MCU_PINS = {
-    "atmega168": port_pins(4), "atmega328": port_pins(4),
-    "atmega644p": port_pins(4), "atmega1284p": port_pins(4),
+    "atmega168": port_pins(5),
+    "atmega168p": port_pins(5),
+    "atmega328": port_pins(5),
+    "atmega328p": port_pins(5),
+    "atmega644p": port_pins(4),
+    "atmega1284p": port_pins(4),
     "at90usb1286": port_pins(6),
-    "atmega1280": port_pins(12), "atmega2560": port_pins(12),
+    "atmega1280": port_pins(12),
+    "atmega2560": port_pins(12),
     "sam3x8e": port_pins(4, 32),
     "pru": beaglebone_pins(),
     "linux": {"analog%d" % i: i for i in range(8)}, # XXX
+    "lpc176x": lpc_arm_port_pins(5, 32),
 }
 
 
@@ -78,23 +90,26 @@ Sanguino_analog = [
 ]
 
 Arduino_Due = [
-    "PA8", "PA9", "PB25", "PC28", "PA29", "PC25", "PC24", "PC23", "PC22", "PC21",
-    "PA28", "PD7", "PD8", "PB27", "PD4", "PD5", "PA13", "PA12", "PA11", "PA10",
-    "PB12", "PB13", "PB26", "PA14", "PA15", "PD0", "PD1", "PD2", "PD3", "PD6",
-    "PD9", "PA7", "PD10", "PC1", "PC2", "PC3", "PC4", "PC5", "PC6", "PC7",
-    "PC8", "PC9", "PA19", "PA20", "PC19", "PC18", "PC17", "PC16", "PC15", "PC14",
-    "PC13", "PC12", "PB21", "PB14", "PA16", "PA24", "PA23", "PA22", "PA6", "PA4",
-    "PA3", "PA2", "PB17", "PB18", "PB19", "PB20", "PB15", "PB16", "PA1", "PA0",
+    "PA8" , "PA9" , "PB25", "PC28", "PA29", "PC25", "PC24", "PC23", "PC22", "PC21",
+    "PA28", "PD7" , "PD8" , "PB27", "PD4" , "PD5" , "PA13", "PA12", "PA11", "PA10",
+    "PB12", "PB13", "PB26", "PA14", "PA15", "PD0" , "PD1" , "PD2" , "PD3" , "PD6" ,
+    "PD9" , "PA7" , "PD10", "PC1" , "PC2" , "PC3" , "PC4" , "PC5" , "PC6" , "PC7" ,
+    "PC8" , "PC9" , "PA19", "PA20", "PC19", "PC18", "PC17", "PC16", "PC15", "PC14",
+    "PC13", "PC12", "PB21", "PB14", "PA16", "PA24", "PA23", "PA22", "PA6" , "PA4" ,
+    "PA3" , "PA2" , "PB17", "PB18", "PB19", "PB20", "PB15", "PB16", "PA1" , "PA0" ,
     "PA17", "PA18", "PC30", "PA21", "PA25", "PA26", "PA27", "PA28", "PB23"
 ]
 Arduino_Due_analog = [
-    "PA16", "PA24", "PA23", "PA22", "PA6", "PA4", "PA3", "PA2", "PB17", "PB18",
+    "PA16", "PA24", "PA23", "PA22", "PA6",  "PA4",  "PA3",  "PA2",  "PB17", "PB18",
     "PB19", "PB20"
 ]
 
 
 Arduino_from_mcu = {
     "atmega168": (Arduino_standard, Arduino_analog_standard),
+    "atmega168p": (Arduino_standard, Arduino_analog_standard),
+    "atmega328": (Arduino_standard, Arduino_analog_standard),
+    "atmega328p": (Arduino_standard, Arduino_analog_standard),
     "atmega644p": (Sanguino, Sanguino_analog),
     "atmega1280": (Arduino_mega, Arduino_analog_mega),
     "atmega2560": (Arduino_mega, Arduino_analog_mega),
@@ -107,6 +122,7 @@ def update_map_arduino(pins, mcu):
         pins['ar' + str(i)] = pins[dpins[i]]
     for i in range(len(apins)):
         pins['analog%d' % (i,)] = pins[apins[i]]
+        pins['A%d' % (i,)] = pins[apins[i]]
 
 
 ######################################################################
@@ -181,12 +197,11 @@ class PrinterPins:
         self.chips = {}
     def parse_pin_desc(self, pin_desc, can_invert=False, can_pullup=False):
         pullup = invert = 0
-        if can_pullup and pin_desc.startswith('^'):
+        if can_pullup and '^' in pin_desc:
             pullup = 1
-            pin_desc = pin_desc[1:].strip()
-        if can_invert and pin_desc.startswith('!'):
+        if can_invert and '!' in pin_desc:
             invert = 1
-            pin_desc = pin_desc[1:].strip()
+        pin_desc = pin_desc.translate(None, '^!').strip()
         if ':' not in pin_desc:
             chip_name, pin = 'mcu', pin_desc
         else:
@@ -195,6 +210,7 @@ class PrinterPins:
             raise error("Unknown pin chip name '%s'" % (chip_name,))
         return {'chip': self.chips[chip_name], 'pin': pin,
                 'invert': invert, 'pullup': pullup}
+
     def register_chip(self, chip_name, chip):
         chip_name = chip_name.strip()
         if chip_name in self.chips:
@@ -209,7 +225,7 @@ def get_printer_pins(printer):
 
 def setup_pin(printer, pin_type, pin_desc):
     ppins = get_printer_pins(printer)
-    can_invert = pin_type in ['stepper', 'endstop', 'digital_out', 'pwm']
+    can_invert = pin_type in ['stepper', 'endstop', 'digital_out', 'pwm', 'thermocouple', 'spibus']
     can_pullup = pin_type == 'endstop'
     pin_params = ppins.parse_pin_desc(pin_desc, can_invert, can_pullup)
     pin_params['type'] = pin_type
